@@ -123,17 +123,17 @@ foo.org has been modified since the last time it was built."
     nil nil nil nil nil
     export-fn))
 
-(defun assemble-latex (file-name &optional out-dir)
+(defun assemble-latex (file-name &optional out-dir beamer)
   "Produce latex pdf from buffer"
   (let ((out-path (if out-dir
 		      (concat out-dir "/" file-name)
 		    file-name)))
     (simple-org-export
-     'latex
+     (if beamer 'beamer 'latex)
      'org-latex-compile
      out-path)))
 
-(defun assemble-latex-bibtex (file-base-name &optional out-dir)
+(defun assemble-latex-bibtex (file-base-name &optional out-dir beamer)
   "Produce latex pdf and compile bibtex from buffer"
   (require 'org-ref)
   (let* ((pdflatex-cmd (format "pdflatex %s %s.tex"
@@ -146,7 +146,7 @@ foo.org has been modified since the last time it was built."
 	    ,bibtex-cmd
 	    ,pdflatex-cmd
 	    ,pdflatex-cmd)))
-    (assemble-latex (concat file-base-name ".tex") (and (boundp 'out-dir) out-dir))))
+    (assemble-latex (concat file-base-name ".tex") (and (boundp 'out-dir) out-dir) beamer)))
 
 (defun assemble-latex-compile (file-list out-name)
   "Compile list of org files into a single pdf"
