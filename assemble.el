@@ -117,11 +117,14 @@ foo.org has been modified since the last time it was built."
 (defun simple-org-export (type export-fn file-name)
   "Wrapper around org-export-to-file with simple defaults"
   (message (concat ":: Exporting to " file-name "..."))
-  (org-export-to-file
-      type
-      file-name
-    nil nil nil nil nil
-    export-fn))
+  (pcase type
+    ('beamer
+     (org-beamer-export-to-pdf))
+    (_ (org-export-to-file
+	   type
+	   file-name
+	 nil nil nil nil nil
+	 export-fn))))
 
 (defun assemble-latex (file-name &optional out-dir beamer)
   "Produce latex pdf from buffer"
