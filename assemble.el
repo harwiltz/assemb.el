@@ -35,10 +35,14 @@ foo.org has been modified since the last time it was built."
       (message (concat "[ . ] " ,name))
       (if (seq-reduce
 	   (lambda (acc x) (or acc x))
-	   (mapcar (lambda (dep) (assemble-ifchanged ,name dep))
+	   (mapcar (lambda (dep) (assemble-ifchanged ,name dep assemble-outdir))
 		   ,deps)
 	   nil)
-	  (progn (message (concat "[>>>] " ,name)) ,@body t)
+	  (progn
+	    (message (concat "[>>>] " ,name))
+	    ,@body
+	    (message (concat "[===] " ,name))
+	    t)
 	nil))))
 
 (defmacro assemble-wildcard (extension depending on deps &rest body)
@@ -49,11 +53,15 @@ foo.org has been modified since the last time it was built."
        (message (concat "[ * ] " filename))
        (if (seq-reduce
 	    (lambda (acc x) (or acc x))
-	    (mapcar (lambda (dep) (assemble-ifchanged filename dep))
+	    (mapcar (lambda (dep) (assemble-ifchanged filename dep assemble-outdir))
 		    (resolve-wildcard-deps ,deps filename))
 	    nil)
 	   (let ((_filename (file-name-sans-extension filename)))
-	     (progn (message (concat "[>>>] " filename)) ,@body t))
+	     (progn
+	       (message (concat "[>>>] " filename))
+	       ,@body
+	       (message (concat "[===] " filename))
+	       t))
 	 nil))))
 
 (defun resolve-wildcard-deps (deps file)
@@ -65,19 +73,28 @@ foo.org has been modified since the last time it was built."
 		dep)))
 	  deps))
 
-(defun assemble-ifchanged (target dep)
+(defun assemble-ifchanged (target dep &optional out-dir)
   "Assemble a build dependency and report if its parent needs to be assembled"
   (if (string-equal target (symbol-name dep))
       (and (message (concat "[XXX] Fatal Error :: Cyclic dependency detected: "
 			    target " depends on itself!"))
 	   nil)
-    (let* ((dep-path (symbol-name dep))
-	    (extension (file-name-extension dep-path))
-	    (wildcard (intern (concat "_" extension))))
-	(if (or (fboundp dep) (fboundp wildcard))
-	    (and (if (fboundp dep) (funcall dep) (funcall wildcard dep-path))
-		(and (file-newer-than-file-p dep-path target) t))
-	(and (file-exists-p dep-path) (file-newer-than-file-p dep-path target))))))
+    (let* ((target-path
+	    (assemble--resolve-target-path
+	     target
+	     (if (boundp 'out-dir) (or out-dir "") "")))
+	   (dep-path (symbol-name dep))
+	   (extension (file-name-extension dep-path))
+	   (wildcard (intern (concat "_" extension))))
+      (if (or (fboundp dep) (fboundp wildcard))
+	  (or (if (fboundp dep) (funcall dep) (funcall wildcard dep-path))
+	       (and (file-newer-than-file-p dep-path target-path) t))
+	(and (file-exists-p dep-path) (file-newer-than-file-p dep-path target-path))))))
+
+(defun assemble--resolve-target-path (target out-dir)
+  (if (string-prefix-p out-dir target)
+      target
+    (concat out-dir "/" target)))
 
 (defun assemble (target)
   "Assemble a given target"
